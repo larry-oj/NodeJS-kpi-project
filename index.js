@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 
-// mongo
+
 mongoose.connect('mongodb://localhost/myapp', {
     useNewUrlParser: true,
     useUnifiedTopology: true
@@ -14,7 +14,6 @@ db.once('open', () => {
 });
 
 
-// user
 const userSchema = new mongoose.Schema({
     name: String,
     email: String,
@@ -23,7 +22,6 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 
 
-// book
 const bookSchema = new mongoose.Schema({
     title: String,
     user: {
@@ -87,6 +85,42 @@ app.get('/users', authenticateToken, (req, res) => {
         } else {
             res.json(users);
         }
+    });
+});
+
+app.put('/users/:id', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(req.user.id, req.body, { new: true });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        res.json(user);
+    } catch (error) {
+        res.status(400).json({ error: 'Bad request' });
+    }
+});
+
+app.delete('/users/:id', authenticateToken, (req, res) => {
+    User.findById(req.params.id, (err, user) => {
+        if (err) {
+            return res.status(400).json({ error: 'Bad request' });
+        }
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        Book.deleteMany({ userId: user._id }, (err) => {
+            if (err) {
+                return res.status(400).json({ error: 'Bad request' });
+            }
+
+            user.remove((err) => {
+                if (err) {
+                    return res.status(400).json({ error: 'Bad request' });
+                }
+                res.sendStatus(204);
+            });
+        });
     });
 });
 
